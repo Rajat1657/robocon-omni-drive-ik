@@ -17,8 +17,25 @@ Goal: Build a 3-wheel omni drive robot controlled by a PS4 controller via ESP32 
 - PS4-esp32 library
 - Teensyduino
 
-## Inverse Kinematics
-Equations used for 120° omni configuration:
+## 📐 Inverse Kinematics (IK)
+
+For a **3-wheel omni drive** (wheels at 120° apart), joystick inputs  
+(**Vx = forward/back**, **Vy = strafe**, **ω = rotation**) are converted into individual wheel speeds:
+
+- $V_1 = V_x + \omega R$  
+- $V_2 = -0.5V_x + 0.866V_y + \omega R$  
+- $V_3 = -0.5V_x - 0.866V_y + \omega R$  
+
+Where:  
+- $V_1, V_2, V_3$ → wheel speeds  
+- $R$ → distance from center to wheel  
+
+**Examples:**  
+- Forward → $V_1=+V_x$, $V_2=-0.5V_x$, $V_3=-0.5V_x$  
+- Strafe right → $V_1=0$, $V_2=+0.866V_y$, $V_3=-0.866V_y$  
+- Rotate CW → all wheels get $+\omega R$
+
+
 
 
 ## Daily Progress
