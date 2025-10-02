@@ -2,13 +2,13 @@
 
 ## Overview
 This project is part of my SRM Team Robocon assignment.
-Goal: Build a 3-wheel omni drive robot controlled by a PS4 controller via ESP32 + Teensy.
+Goal: Build a 3-wheel omni drive robot controlled by a PS4 controller via Teensy and Bluetooth Module.
 
 ## Hardware
 - Teensy 4.1
-- ESP32 (Bluetooth bridge)
+- HC-05/HC-06(Bluetooth Module)
 - 3 Omni wheels + motors
-- Motor drivers (Cytron / BTS7960)
+- Motor drivers
 - PS4 Controller
 - LiPo Battery (12–24V)
 
@@ -51,7 +51,7 @@ Where:
 - Tested PS4-esp32 example.
 
 ### Day 3 (Oct 2)
-- [log what you did...]
+- 
 
 ### Day 4 (Oct 3)
 
@@ -71,3 +71,6 @@ Where:
 
 ## Future Improvements
 - 
+
+## Reference
+[3-Wheel-Omni-Drive-KI](https://www.youtube.com/watch?v=wwQQnSWqB7A)
