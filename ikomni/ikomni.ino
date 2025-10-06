@@ -1,115 +1,117 @@
-#include "USBHost_t36.h"
+#include <USBHost_t36.h>  // This library lets the Teensy talk to USB devices like a PS4 controller
 
-// ===================== USB / Controller Setup =====================
-USBHost myusb;
-USBHub hub1(myusb); // Optional, but good practice
-JoystickController joystick1(myusb);
-BluetoothController bluet(myusb, true, "0000"); // For BT pairing
+// These are the pins connected to the Cytron
+int pwm1 = 23;  // Motor 1 pwm
+int dir1 = 21;  // Motor 1 direction control
 
-// ===================== Motor Setup =====================
-const int M1_PWM = 3;  // Motor 1 PWM
-const int M1_DIR = 22; // Motor 1 DIR
-const int M2_PWM = 4;  // Motor 2 PWM
-const int M2_DIR = 23; // Motor 2 DIRee
-const int M3_PWM = 5;  // Motor 3 PWM
-const int M3_DIR = 24; // Motor 3 DIR
+int pwm2 = 3;   // Motor 2 pwm
+int dir2 = 5;   // Motor 2 direction control
 
-// Distance from robot center to wheel (in meters, for rotation)
-const float L = 0.1;
+int pwm3 = 2;   // Motor 3 pwm
+int dir3 = 4;   // Motor 3 direction control
 
-// ===================== Helper Functions =====================
-// Maps the raw joystick integer value to a float from -1.0 to 1.0
-float joyMap(int val) {
-  return (float)val / 32767.0;
-}
+// L is the distance from the center of the robot to each wheel
+// r is the radius of the wheel
+float L = 0.315;
+float r = 0.1;
 
-// Drives a motor with a given speed (-255 to 255)
-void driveMotor(int pwmPin, int dirPin, float speed) {
-  // Ensure speed is within the valid PWM range
-  speed = constrain(speed, -255, 255);
-  // Set direction based on the sign of the speed
-  digitalWrite(dirPin, speed >= 0 ? HIGH : LOW);
-  // Write the speed (magnitude) to the PWM pin
-  analogWrite(pwmPin, abs(speed));
-}
+// These will hold the required movement direction and rotation
+float Vx = 0.0;  // Forward/backward
+float Vy = 0.0;  // Left/right
+float w = 0.0;   // Rotation (spin)
 
-// ===================== Setup =====================
+int pwmVal = 0;         // Final PWM value sent to motors
+float maxSpeed = 0.2;   // Maximum speed in meters per second
+
+// === Joystick filtering ===
+int deadZone = 20;  // deadzone to avoid unnnecessary movement or jitters
+
+// === USB controller setup ===
+USBHost myusb;                            // USB host object for Teensy
+BluetoothController bluet(myusb, true, "0000");  // for pairing the PS4
+JoystickController joystick(myusb);      // Joystick object to read PS4 inputs
+
+// === Setup runs once at startup ===
 void setup() {
-  Serial.begin(115200);
-  while (!Serial) {
-    // wait for serial monitor to connect
-  }
-  Serial.println("Omni-Drive Robot Ready. Waiting for PS4 controller...");
+  Serial.begin(115200);  // Start serial monitor for debugging
+  while (!Serial && millis() < 4000);  // Wait up to 4 seconds for serial to connect
+  Serial.println("Waiting for PS4 controller...");
 
-  myusb.begin();
+  myusb.begin();  // Start USB host
 
-  // Set motor pins to OUTPUT
-  pinMode(M1_PWM, OUTPUT);
-  pinMode(M1_DIR, OUTPUT);
-  pinMode(M2_PWM, OUTPUT);
-  pinMode(M2_DIR, OUTPUT);
-  pinMode(M3_PWM, OUTPUT);
-  pinMode(M3_DIR, OUTPUT);
+  // Set all motor pins as outputs
+  pinMode(pwm1, OUTPUT);
+  pinMode(dir1, OUTPUT);
+
+  pinMode(pwm2, OUTPUT);
+  pinMode(dir2, OUTPUT);
+
+  pinMode(pwm3, OUTPUT);
+  pinMode(dir3, OUTPUT);
 }
 
-// ===================== Loop =====================
+
 void loop() {
-  myusb.Task(); // This must be called frequently to process USB events
+  myusb.Task();  // Keep USB host running to check for controller input
 
-  if (joystick1.available()) {
-    // --- 1. Get Normalized Joystick Input with Deadzone ---
-    const float DEADZONE = 0.10; // 10% deadzone to prevent drift
+  if (joystick.available()) {  // if controller is connected and sending data
 
-    // Correctly map joystick axes to robot movement
-    float Vx_input = joyMap(joystick1.getAxis(0));   // Left Stick X -> Strafe
-    float Vy_input = -joyMap(joystick1.getAxis(1));  // Left Stick Y -> Forward/Back (Inverted)
-    float W_input  = joyMap(joystick1.getAxis(2));   // Right Stick X -> Rotation
+    // read joystick axes and map them from 0–255 to -127 to +127
+    int lx = map(joystick.getAxis(1), 0, 255, -127, 127);  // Left stick X axis (for strafing left and right)
+    int ly = map(joystick.getAxis(2), 0, 255, -127, 127);  // Left stick Y axist (forward/backward)
+    int rx = map(joystick.getAxis(3), 0, 255, -127, 127);  // Right stick X axis (rotation)
 
-    // Apply deadzone
-    float Vx = (abs(Vx_input) > DEADZONE) ? Vx_input : 0;
-    float Vy = (abs(Vy_input) > DEADZONE) ? Vy_input : 0;
-    float W  = (abs(W_input)  > DEADZONE) ? W_input  : 0;
+    // Apply deadzone to ignore small movements
+    if (abs(lx) < deadZone) lx = 0;
+    if (abs(ly) < deadZone) ly = 0;
+    if (abs(rx) < deadZone) rx = 0;
 
-    // --- 2. Inverse Kinematics ---
-    // Calculate the required speed for each wheel based on desired robot movement
-    // The inputs (Vx, Vy, W) are still in the range -1.0 to 1.0
-    float w1 = Vy + (L * W);
-    float w2 = -0.866 * Vx - 0.5 * Vy + (L * W);
-    float w3 =  0.866 * Vx - 0.5 * Vy + (L * W);
+    // Print joystick values for debugging
+    Serial.print("LX: "); Serial.print(lx);
+    Serial.print(" | LY: "); Serial.print(ly);
+    Serial.print(" | RX: "); Serial.println(rx);
 
-    // --- 3. Normalize Wheel Speeds ---
-    // Find the maximum calculated speed (in magnitude)
-    float max_speed = max(max(abs(w1), abs(w2)), abs(w3));
+    // Convert joystick values to motion commands
+    Vx = -((float)ly / 127.0);  // Forward/backward (invert Y)
+    Vy = -((float)lx / 127.0);  // Left/right (invert X)
+    w  =  ((float)rx / 127.0);  // Rotation
 
-    // If the max speed is greater than 1.0, we must scale all speeds down
-    // proportionally to prevent motor saturation and maintain the correct direction.
-    if (max_speed > 1.0) {
-      w1 /= max_speed;
-      w2 /= max_speed;
-      w3 /= max_speed;
-    }
+    // Calculate how fast each wheel should spin to achieve the desired motion
+    float w1 = ((-0.866 * Vx - 0.5 * Vy + L * w) / r);  // Wheel 1
+    float w2 = (( 0.866 * Vx - 0.5 * Vy + L * w) / r);  // Wheel 2
+    float w3 = (( 0.0   * Vx + 1.0 * Vy + L * w) / r);  // Wheel 3
 
-    // --- 4. Scale to PWM and Drive Motors ---
-    // Convert the normalized speeds (-1.0 to 1.0) to the PWM range (-255 to 255)
-    driveMotor(M1_PWM, M1_DIR, w1 * 255.0);
-    driveMotor(M2_PWM, M2_DIR, w2 * 255.0);
-    driveMotor(M3_PWM, M3_DIR, w3 * 255.0);
+    // Send speed commands to each motor
+    setMotor(pwm1, dir1, -w1);  // Motor 1 (inverted) (because the controller takes up as negative and down as positive)
+    setMotor(pwm2, dir2,  w2);  // Motor 2
+    setMotor(pwm3, dir3,  w3);  // Motor 3
 
-    // --- 5. Debugging Output (Optional) ---
-    Serial.print("Vx: "); Serial.print(Vx, 2);
-    Serial.print("\tVy: "); Serial.print(Vy, 2);
-    Serial.print("\tW: "); Serial.print(W, 2);
-    Serial.print("\t| w1: "); Serial.print(w1 * 255.0, 0);
-    Serial.print("\tw2: "); Serial.print(w2 * 255.0, 0);
-    Serial.print("\tw3: "); Serial.println(w3 * 255.0, 0);
+    // Print calculated speeds for debugging
+    Serial.print(" || Vx: "); Serial.print(Vx);
+    Serial.print(" | Vy: "); Serial.print(Vy);
+    Serial.print(" | w1: "); Serial.print(w1);
+    Serial.print(" | w2: "); Serial.print(w2);
+    Serial.print(" | w3: "); Serial.println(w3);
 
-    // Clear the joystick data to process the next packet
-    joystick1.joystickDataClear();
-
-  } else {
-    // If controller disconnects, stop all motors for safety
-    driveMotor(M1_PWM, M1_DIR, 0);
-    driveMotor(M2_PWM, M2_DIR, 0);
-    driveMotor(M3_PWM, M3_DIR, 0);
+    joystick.joystickDataClear();  // Clear joystick data for next loop
   }
 }
+
+// This sets the direction and PWM for a motor based on desired speed
+void setMotor(int pwm, int dir, float speed) {
+  // Convert speed to PWM value (scaled to 0–100 range)
+  int pwmVal = mapFloatToInt(abs(speed) * 1000, 0, maxSpeed * 10000, 0, 100);
+  pwmVal = constrain(pwmVal, 0, 100);  // Clamp to safe range
+
+  if (pwmVal < 5) pwmVal = 0;  // Ignore very low speeds to prevent jitter
+
+  // Set motor direction and apply PWM
+  if (speed > 0) {
+    digitalWrite(dir, HIGH);         // Forward
+    analogWrite(pwm, pwmVal);
+  } else if (speed < 0) {
+    digitalWrite(dir, LOW);          // Reverse
+    analogWrite(pwm, abs(pwmVal));
+  } else {
+    analogWrite(pwm, 0);             // Stop
+  }
