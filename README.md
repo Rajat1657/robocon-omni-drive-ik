@@ -44,3 +44,5 @@ Where:
 
 ## Reference
 [3-Wheel-Omni-Drive-KI](https://www.youtube.com/watch?v=wwQQnSWqB7A)
+[Inverse-Kinematics](https://www.youtube.com/watch?v=1-FJhmey7vk)
+[]
