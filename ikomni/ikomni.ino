@@ -115,3 +115,10 @@ void setMotor(int pwm, int dir, float speed) {
   } else {
     analogWrite(pwm, 0);             // Stop
   }
+  Serial.println(pwmVal);
+}
+// map function for float
+int mapFloatToInt(float x, float in_min, float in_max, float out_min, float out_max) {
+    float mapped = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return (int)mapped;
+}
