@@ -6,7 +6,7 @@ Goal: Build a 3-wheel omni drive robot controlled by a PS4 controller via Teensy
 
 ## Hardware
 - Teensy 4.1
-- HC-05/HC-06(Bluetooth Module)
+- Bluetooth Dongle
 - 3 Omni wheels + motors
 - Motor drivers
 - PS4 Controller
@@ -14,7 +14,7 @@ Goal: Build a 3-wheel omni drive robot controlled by a PS4 controller via Teensy
 
 ## Software
 - Arduino IDE
-- PS4-esp32 library
+- PS4 library
 - Teensyduino
 
 ## 📐 Inverse Kinematics (IK)
@@ -44,3 +44,5 @@ Where:
 
 ## Reference
 [3-Wheel-Omni-Drive-KI](https://www.youtube.com/watch?v=wwQQnSWqB7A)
+[Inverse-Kinematics](https://www.youtube.com/watch?v=1-FJhmey7vk)
+[]
