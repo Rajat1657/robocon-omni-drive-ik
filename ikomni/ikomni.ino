@@ -1,14 +1,14 @@
 #include <USBHost_t36.h>  // This library lets the Teensy talk to USB devices like a PS4 controller
 
 // These are the pins connected to the Cytron
-int pwm1 = 23;  // Motor 1 pwm
-int dir1 = 21;  // Motor 1 direction control
+int pwm1 = 2;  // Motor 1 pwm
+int dir1 = 4;  // Motor 1 direction control
 
 int pwm2 = 3;   // Motor 2 pwm
 int dir2 = 5;   // Motor 2 direction control
 
-int pwm3 = 2;   // Motor 3 pwm
-int dir3 = 4;   // Motor 3 direction control
+int pwm3 = 23;   // Motor 3 pwm
+int dir3 = 21;   // Motor 3 direction control
 
 // L is the distance from the center of the robot to each wheel
 // r is the radius of the wheel
@@ -24,7 +24,7 @@ int pwmVal = 0;         // Final PWM value sent to motors
 float maxSpeed = 0.2;   // Maximum speed in meters per second
 
 // === Joystick filtering ===
-int deadZone = 20;  // deadzone to avoid unnnecessary movement or jitters
+int deadZone = 10;  // deadzone to avoid unnnecessary movement or jitters
 
 // === USB controller setup ===
 USBHost myusb;                            // USB host object for Teensy
@@ -79,12 +79,12 @@ void loop() {
     // Calculate how fast each wheel should spin to achieve the desired motion
     float w1 = ((-0.866 * Vx - 0.5 * Vy + L * w) / r);  // Wheel 1
     float w2 = (( 0.866 * Vx - 0.5 * Vy + L * w) / r);  // Wheel 2
-    float w3 = (( 0.0   * Vx + 1.0 * Vy + L * w) / r);  // Wheel 3
+    float w3 = ((- 0.0   * Vx + 1.0 * Vy + L * w) / r);  // Wheel 3
 
     // Send speed commands to each motor
     setMotor(pwm1, dir1, -w1);  // Motor 1 (inverted) (because the controller takes up as negative and down as positive)
     setMotor(pwm2, dir2,  w2);  // Motor 2
-    setMotor(pwm3, dir3,  w3);  // Motor 3
+    setMotor(pwm3, dir3,  -w3);  // Motor 3
 
     // Print calculated speeds for debugging
     Serial.print(" || Vx: "); Serial.print(Vx);
@@ -99,9 +99,9 @@ void loop() {
 
 // This sets the direction and PWM for a motor based on desired speed
 void setMotor(int pwm, int dir, float speed) {
-  // Convert speed to PWM value (scaled to 0–100 range)
-  int pwmVal = mapFloatToInt(abs(speed) * 1000, 0, maxSpeed * 10000, 0, 100);
-  pwmVal = constrain(pwmVal, 0, 100);  // Clamp to safe range
+  // Convert speed to PWM value (scaled to 0-75 range)
+  int pwmVal = mapFloatToInt(abs(speed) * 1000, 0, maxSpeed * 10000, 0, 40);
+  pwmVal = constrain(pwmVal, 0, 40);  // Clamp to safe range
 
   if (pwmVal < 5) pwmVal = 0;  // Ignore very low speeds to prevent jitter
 
